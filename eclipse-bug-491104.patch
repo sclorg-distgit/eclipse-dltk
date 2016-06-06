@@ -1,0 +1,70 @@
+From 9e4d372ac9753eba18f8d6812c25838230a28dbf Mon Sep 17 00:00:00 2001
+From: Mat Booth <mat.booth@redhat.com>
+Date: Tue, 5 Apr 2016 17:26:48 +0100
+Subject: [PATCH] Bug 491104 - Allow ruby tests to execute when the source is
+ not present
+
+Change-Id: Ie541e73e0302c488de8a3643b3a7bad127d94add
+Signed-off-by: Mat Booth <mat.booth@redhat.com>
+---
+ tests/org.eclipse.dltk.ruby.core.tests/pom.xml      | 2 +-
+ tests/org.eclipse.dltk.ruby.formatter.tests/pom.xml | 2 +-
+ tests/org.eclipse.dltk.ruby.testing.tests/pom.xml   | 2 +-
+ tests/org.eclipse.dltk.ruby.ui.tests/pom.xml        | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/tests/org.eclipse.dltk.ruby.core.tests/pom.xml b/tests/org.eclipse.dltk.ruby.core.tests/pom.xml
+index f7ed283..8ce5b7f 100644
+--- a/tests/org.eclipse.dltk.ruby.core.tests/pom.xml
++++ b/tests/org.eclipse.dltk.ruby.core.tests/pom.xml
+@@ -19,7 +19,7 @@
+ 				<version>${tycho-version}</version>
+ 				<configuration>
+ 					<includes>
+-						<include>**/AllTests.java</include>
++						<include>**/AllTests.*</include>
+ 					</includes>
+ 				</configuration>
+ 			</plugin>
+diff --git a/tests/org.eclipse.dltk.ruby.formatter.tests/pom.xml b/tests/org.eclipse.dltk.ruby.formatter.tests/pom.xml
+index d23cbc6..a0cc7c2 100644
+--- a/tests/org.eclipse.dltk.ruby.formatter.tests/pom.xml
++++ b/tests/org.eclipse.dltk.ruby.formatter.tests/pom.xml
+@@ -19,7 +19,7 @@
+ 				<version>${tycho-version}</version>
+ 				<configuration>
+ 					<includes>
+-						<include>**/AllTests.java</include>
++						<include>**/AllTests.*</include>
+ 					</includes>
+ 				</configuration>
+ 			</plugin>
+diff --git a/tests/org.eclipse.dltk.ruby.testing.tests/pom.xml b/tests/org.eclipse.dltk.ruby.testing.tests/pom.xml
+index cab3791..655ae83 100644
+--- a/tests/org.eclipse.dltk.ruby.testing.tests/pom.xml
++++ b/tests/org.eclipse.dltk.ruby.testing.tests/pom.xml
+@@ -19,7 +19,7 @@
+ 				<version>${tycho-version}</version>
+ 				<configuration>
+ 					<includes>
+-						<include>**/AllTests.java</include>
++						<include>**/AllTests.*</include>
+ 					</includes>
+ 				</configuration>
+ 			</plugin>
+diff --git a/tests/org.eclipse.dltk.ruby.ui.tests/pom.xml b/tests/org.eclipse.dltk.ruby.ui.tests/pom.xml
+index aa3c9e6..24a670d 100644
+--- a/tests/org.eclipse.dltk.ruby.ui.tests/pom.xml
++++ b/tests/org.eclipse.dltk.ruby.ui.tests/pom.xml
+@@ -38,7 +38,7 @@
+ 					<useUIThread>true</useUIThread>
+ 					<argLine>-Xms40m -Xmx1G ${os-jvm-flags} ${tycho.testArgLine}</argLine>
+ 					<includes>
+-						<include>**/AllTests.java</include>
++						<include>**/AllTests.*</include>
+ 					</includes>
+ 				</configuration>
+ 			</plugin>
+-- 
+2.5.0
+

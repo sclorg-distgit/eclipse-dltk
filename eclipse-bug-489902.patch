@@ -1,0 +1,115 @@
+From 2f9a3d0dcbff408ab010081fbcb1f74d91dfc24d Mon Sep 17 00:00:00 2001
+From: Alexander Kurtakov
+Date: Fri, 18 Mar 2016 09:39:34 +0200
+Subject: Bug 489902 - unreadable Ruby hover help and Ruby Documentation view
+
+Issue is that AbstractDocumentationView passes COLOR_INFO_BACKGROUND as
+bg color to HTMLPrinter but the method called has #000000 as foreground
+color. Fixed by passing both bg and fg colors.
+
+Change-Id: I03dddf075403aa594e3b46b812a47f6308e1993b
+Signed-off-by: Alexander Kurtakov <akurtako@redhat.com>---
+ .../eclipse/dltk/internal/ui/text/HTMLPrinter.java | 28 +++++++++++++++++++---
+ .../ui/infoviews/AbstractDocumentationView.java    |  7 ++++--
+ 2 files changed, 30 insertions(+), 5 deletions(-)
+
+diff --git a/core/plugins/org.eclipse.dltk.ui/src/org/eclipse/dltk/internal/ui/text/HTMLPrinter.java b/core/plugins/org.eclipse.dltk.ui/src/org/eclipse/dltk/internal/ui/text/HTMLPrinter.java
+index 4fc9d1c..77f3f3f 100644
+--- a/core/plugins/org.eclipse.dltk.ui/src/org/eclipse/dltk/internal/ui/text/HTMLPrinter.java
++++ b/core/plugins/org.eclipse.dltk.ui/src/org/eclipse/dltk/internal/ui/text/HTMLPrinter.java
+@@ -1,11 +1,10 @@
+ /*******************************************************************************
+- * Copyright (c) 2000, 2007 IBM Corporation and others.
++ * Copyright (c) 2000, 2016 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+  * http://www.eclipse.org/legal/epl-v10.html
+  *
+- 
+  *******************************************************************************/
+ package org.eclipse.dltk.internal.ui.text;
+ 
+@@ -92,6 +91,28 @@ public class HTMLPrinter {
+ 		}
+ 	}
+ 
++	public static void insertPageProlog(StringBuffer buffer, int position,
++			RGB bgRGB, RGB fgRGB, String styleSheet) {
++
++		if (bgRGB == null)
++			insertPageProlog(buffer, position, styleSheet);
++		else {
++			StringBuffer pageProlog = new StringBuffer(300);
++
++			pageProlog.append("<html>"); //$NON-NLS-1$
++
++			appendStyleSheetURL(pageProlog, styleSheet);
++
++			pageProlog.append("<body text=\""); //$NON-NLS-1$
++			appendColor(pageProlog, fgRGB);
++			pageProlog.append("\" bgcolor=\""); //$NON-NLS-1$
++			appendColor(pageProlog, bgRGB);
++			pageProlog.append("\">"); //$NON-NLS-1$
++
++			buffer.insert(position, pageProlog.toString());
++		}
++	}
++
+ 	public static void insertStyles(StringBuffer buffer, String[] styles) {
+ 		if (styles == null || styles.length == 0)
+ 			return;
+@@ -167,7 +188,8 @@ public class HTMLPrinter {
+ 
+ 	public static void insertPageProlog(StringBuffer buffer, int position,
+ 			String styleSheet) {
+-		insertPageProlog(buffer, position, HTMLUtils.getBgColor(), styleSheet);
++		insertPageProlog(buffer, position, HTMLUtils.getBgColor(),
++				HTMLUtils.getFgColor(), styleSheet);
+ 	}
+ 
+ 	public static void addPageProlog(StringBuffer buffer) {
+diff --git a/core/plugins/org.eclipse.dltk.ui/src/org/eclipse/dltk/ui/infoviews/AbstractDocumentationView.java b/core/plugins/org.eclipse.dltk.ui/src/org/eclipse/dltk/ui/infoviews/AbstractDocumentationView.java
+index 32083f3..55c1b88 100644
+--- a/core/plugins/org.eclipse.dltk.ui/src/org/eclipse/dltk/ui/infoviews/AbstractDocumentationView.java
++++ b/core/plugins/org.eclipse.dltk.ui/src/org/eclipse/dltk/ui/infoviews/AbstractDocumentationView.java
+@@ -109,7 +109,7 @@ public abstract class AbstractDocumentationView extends AbstractInfoView {
+ 	private static String fgStyleSheet;
+ 	/** The Browser widget */
+ 	private boolean fIsUsingBrowserWidget;
+-	private RGB fBackgroundColorRGB;
++	private RGB fBackgroundColorRGB, fForegroundColorRGB;
+ 
+ 	/**
+ 	 * The Javadoc view's select all action.
+@@ -339,6 +339,7 @@ public abstract class AbstractDocumentationView extends AbstractInfoView {
+ 	@Override
+ 	protected void setForeground(Color color) {
+ 		getControl().setForeground(color);
++		fForegroundColorRGB = color.getRGB();
+ 	}
+ 
+ 	/*
+@@ -347,8 +348,9 @@ public abstract class AbstractDocumentationView extends AbstractInfoView {
+ 		// Apply style sheet
+ 		fBackgroundColorRGB = color.getRGB();
+ 		if (getInput() == null) {
+-			StringBuffer buffer = new StringBuffer(""); //$NON-NLS-1$
++			StringBuffer buffer = new StringBuffer();
+ 			HTMLPrinter.insertPageProlog(buffer, 0, fBackgroundColorRGB,
++					fForegroundColorRGB,
+ 					fgStyleSheet);
+ 			setInput(buffer.toString());
+ 		} else {
+@@ -548,6 +550,7 @@ public abstract class AbstractDocumentationView extends AbstractInfoView {
+ 	private String addPrologeEpilog(StringBuffer buffer) {
+ 		if (buffer.length() > 0) {
+ 			HTMLPrinter.insertPageProlog(buffer, 0, fBackgroundColorRGB,
++					fForegroundColorRGB,
+ 					fgStyleSheet);
+ 			HTMLPrinter.addPageEpilog(buffer);
+ 			return buffer.toString();
+-- 
+cgit v0.11.2-4-g4a35
+
+

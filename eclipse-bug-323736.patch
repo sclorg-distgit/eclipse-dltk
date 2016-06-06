@@ -1,0 +1,37 @@
+From 58f274a78322f0cabb85f1e5638950a3ee59ed61 Mon Sep 17 00:00:00 2001
+From: Maturin <lars.benner@gmail.com>
+Date: Mon, 9 Nov 2015 21:43:49 +0100
+Subject: [PATCH] Fixed bug 3237365, running Ruby unit tests with 1.8, 1.9 or
+ later.
+
+---
+ .../testing/dltk-testunit-runner.rb                              | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/plugins/org.eclipse.dltk.ruby.testing/testing/dltk-testunit-runner.rb b/plugins/org.eclipse.dltk.ruby.testing/testing/dltk-testunit-runner.rb
+index 607c2fd..8e32e9a 100644
+--- a/plugins/org.eclipse.dltk.ruby.testing/testing/dltk-testunit-runner.rb
++++ b/plugins/org.eclipse.dltk.ruby.testing/testing/dltk-testunit-runner.rb
+@@ -17,6 +17,7 @@ module MessageIds
+ 
+ 			# Notification that a test run has ended.
+ 			# TEST_RUN_END + elapsedTime.toString().
++
+ 			TEST_RUN_END   = "%RUNTIME"
+ 
+ 			# Notification about a test inside the test suite.
+@@ -249,7 +250,13 @@ def sendMessage(message)
+ 		if port != 0
+ 			path = ENV[DLTK::TestUnit::EnvVars::PATH]
+ 			autoRunner = Test::Unit::AutoRunner.new(path != nil)
+-			autoRunner.output_level = Test::Unit::UI::SILENT
++
++      if RUBY_VERSION >= "1.9"
++        autoRunner.runner_options[:output_level] = Test::Unit::UI::Console::OutputLevel::SILENT
++      else
++			  autoRunner.output_level = Test::Unit::UI::SILENT
++      end
++
+ 			autoRunner.base = path if path
+ 			# ssanders - Support non-standard test filenames (e.g. Rails)
+ 			autoRunner.pattern = [/\b.*_test\.rb\Z/m]
