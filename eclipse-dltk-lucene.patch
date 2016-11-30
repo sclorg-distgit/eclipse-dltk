@@ -1,0 +1,102 @@
+From a34fcb2cf40114a7f2434647c8270de467c09f1b Mon Sep 17 00:00:00 2001
+From: Mat Booth <mat.booth@redhat.com>
+Date: Tue, 5 Jul 2016 10:35:07 +0100
+Subject: [PATCH] Port to latest system Lucene
+
+---
+ core/plugins/org.eclipse.dltk.core.index.lucene/.classpath    |  3 ---
+ .../org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF   |  9 ++++-----
+ .../org.eclipse.dltk.core.index.lucene/build.properties       |  5 +----
+ .../dltk/internal/core/index/lucene/BitFlagsQuery.java        | 11 +++++------
+ .../dltk/internal/core/index/lucene/IndexDirectory.java       |  1 -
+ 5 files changed, 10 insertions(+), 19 deletions(-)
+
+diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/.classpath b/core/plugins/org.eclipse.dltk.core.index.lucene/.classpath
+index 7376f74..098194c 100644
+--- a/core/plugins/org.eclipse.dltk.core.index.lucene/.classpath
++++ b/core/plugins/org.eclipse.dltk.core.index.lucene/.classpath
+@@ -1,8 +1,5 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-	<classpathentry exported="true" kind="lib" path="lib/lucene-analyzers-common-5.2.1.jar"/>
+-	<classpathentry exported="true" kind="lib" path="lib/lucene-core-5.2.1.jar"/>
+-	<classpathentry exported="true" kind="lib" path="lib/lucene-misc-5.2.1.jar"/>
+ 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
+ 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
+ 	<classpathentry kind="src" path="src"/>
+diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF b/core/plugins/org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF
+index 029ec8a..57d6e87 100644
+--- a/core/plugins/org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF
++++ b/core/plugins/org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF
+@@ -8,11 +8,10 @@ Bundle-Localization: plugin
+ Bundle-Vendor: %Bundle-Vendor
+ Require-Bundle: org.eclipse.core.runtime,
+  org.eclipse.core.resources,
+- org.eclipse.dltk.core
++ org.eclipse.dltk.core,
++ org.apache.lucene.core,
++ org.apache.lucene.analyzers-common,
++ org.apache.lucene.misc
+ Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+ Bundle-ActivationPolicy: lazy
+-Bundle-ClassPath: .,
+- lib/lucene-analyzers-common-5.2.1.jar,
+- lib/lucene-core-5.2.1.jar,
+- lib/lucene-misc-5.2.1.jar
+ Export-Package: org.eclipse.dltk.core.index.lucene
+diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/build.properties b/core/plugins/org.eclipse.dltk.core.index.lucene/build.properties
+index eb43af9..665bfb0 100644
+--- a/core/plugins/org.eclipse.dltk.core.index.lucene/build.properties
++++ b/core/plugins/org.eclipse.dltk.core.index.lucene/build.properties
+@@ -14,8 +14,5 @@ bin.includes = META-INF/,\
+                .,\
+                plugin.xml,\
+                plugin.properties,\
+-               about.html,\
+-               lib/lucene-analyzers-common-5.2.1.jar,\
+-               lib/lucene-core-5.2.1.jar,\
+-               lib/lucene-misc-5.2.1.jar
++               about.html
+ source.. = src/
+diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java
+index 9af3308..eacc736 100644
+--- a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java
++++ b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java
+@@ -100,8 +100,7 @@ public class BitFlagsQuery extends Query {
+ 			@Override
+ 			public Explanation explain(LeafReaderContext context, int doc)
+ 					throws IOException {
+-				final Scorer scorer = scorer(context,
+-						context.reader().getLiveDocs());
++				final Scorer scorer = scorer(context);
+ 				final boolean match = (scorer != null
+ 						&& scorer.advance(doc) == doc);
+ 				if (match) {
+@@ -113,9 +112,9 @@ public class BitFlagsQuery extends Query {
+ 			}
+ 
+ 			@Override
+-			public Scorer scorer(LeafReaderContext context, Bits acceptDocs)
+-					throws IOException {
+-				final DocIdSet set = getDocIdSet(context, acceptDocs);
++			public Scorer scorer(LeafReaderContext context) throws IOException {
++				final DocIdSet set = getDocIdSet(context,
++						context.reader().getLiveDocs());
+ 				if (set == null) {
+ 					return null;
+ 				}
+diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java
+index 20f3b00..5945bf8 100644
+--- a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java
++++ b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java
+@@ -93,7 +93,6 @@ public class IndexDirectory extends RAFDirectory {
+ 	public IndexOutput createOutput(String name, IOContext context)
+ 			throws IOException {
+ 		ensureOpen();
+-		ensureCanWrite(name);
+ 		return new RAFIndexOutput(name);
+ 	}
+ 
+-- 
+2.5.5
+
