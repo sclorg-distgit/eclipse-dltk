@@ -4,13 +4,13 @@
 
 %global baserelease 2
 
-%global gittag R5_5_0
+%global gittag R5_7_0
 
 Name:      %{?scl_prefix}eclipse-dltk
-Version:   5.5.0
-Release:   3.%{baserelease}%{?dist}
+Version:   5.7.0
+Release:   1.%{baserelease}%{?dist}
 Summary:   Dynamic Languages Toolkit (DLTK) Eclipse plug-in
-License:   EPL and (CPL or GPLv2+ or LGPLv2+) and Ruby
+License:   EPL and (CPL or GPLv2+ or LGPLv2+) and Ruby and ASL 2.0
 URL:       http://www.eclipse.org/dltk/
 
 # source tarball and the script used to generate it from upstream's source control
@@ -25,7 +25,7 @@ Patch0:    eclipse-dltk-lucene.patch
 BuildArch:        noarch
 
 BuildRequires:    %{?scl_prefix}eclipse-license >= 1.0.1
-BuildRequires:    %{?scl_prefix}eclipse-pde >= 1:4.4.0
+BuildRequires:    %{?scl_prefix}eclipse-pde >= 1:4.6.0
 BuildRequires:    %{?scl_prefix}eclipse-emf-runtime
 BuildRequires:    %{?scl_prefix}eclipse-mylyn
 BuildRequires:    %{?scl_prefix}eclipse-rse
@@ -33,10 +33,8 @@ BuildRequires:    %{?scl_prefix}eclipse-manpage
 BuildRequires:    %{?scl_prefix}h2
 BuildRequires:    %{?scl_prefix_java_common}lucene5
 BuildRequires:    %{?scl_prefix_java_common}lucene5-analysis
-BuildRequires:    %{?scl_prefix_java_common}lucene5-misc
 BuildRequires:    %{?scl_prefix}tycho
-Requires:         %{?scl_prefix}eclipse-platform >= 1:4.4.0
-Requires:         %{?scl_prefix_java_common}lucene5-misc
+Requires:         %{?scl_prefix}eclipse-platform >= 1:4.6.0
 
 %description
 Dynamic Languages Toolkit (DLTK) is a tool for vendors, researchers, and users
@@ -57,12 +55,6 @@ Languages Toolkit (DLTK).
 %package   tcl
 Summary:   TCL Eclipse plug-in
 Requires:  tcl
-
-# Obsoletes/provides added in F22
-Obsoletes: %{name}-itcl < %{version}-%{release}
-Provides:  %{name}-itcl = %{version}-%{release}
-Obsoletes: %{name}-xotcl < %{version}-%{release}
-Provides:  %{name}-xotcl = %{version}-%{release}
 
 %description tcl
 TCL development environment for Eclipse based on the Eclipse Dynamic
@@ -104,6 +96,7 @@ Documentation and source for the Eclipse Dynamic Languages Toolkit (DLTK).
 
 %package   tests
 Summary:   Eclipse DLTK Tests
+Requires:  %{name}-sdk = %{version}-%{release}
 Requires:  %{?scl_prefix}eclipse-swtbot
 
 %description tests
@@ -133,11 +126,6 @@ sed -i '/<target>/,/<\/target>/ d' org.eclipse.dltk.core/core/tests/org.eclipse.
 %pom_xpath_remove "pom:plugin[pom:artifactId='tycho-packaging-plugin']/pom:dependencies" org.eclipse.dltk.releng/build
 %pom_xpath_remove "pom:plugin[pom:artifactId='tycho-packaging-plugin']/pom:configuration" org.eclipse.dltk.releng/build
 
-# Fix restricted API access warnings
-%pom_xpath_inject "pom:build/pom:plugins/pom:plugin[pom:artifactId='tycho-compiler-plugin']" \
-  "<configuration><compilerArgument>-warn:+discouraged,forbidden</compilerArgument></configuration>" \
-  org.eclipse.dltk.releng/build
-
 %mvn_package "::pom::" __noinstall
 %mvn_package ":*.tests" tests
 %mvn_package "::jar:sources:" sdk
@@ -160,7 +148,9 @@ sed -i '/<target>/,/<\/target>/ d' org.eclipse.dltk.core/core/tests/org.eclipse.
 %build
 %{?scl:scl enable %{scl_maven} %{scl} - << "EOF"}
 set -e -x
-%mvn_build -j -f -- -f org.eclipse.dltk.releng/pom.xml
+# Qualifier generated from last modification time of source tarball
+QUALIFIER=$(date -u -d"$(stat --format=%y %{SOURCE0})" +%Y%m%d%H%M)
+%mvn_build -j -f -- -f org.eclipse.dltk.releng/pom.xml -DforceContextQualifier=$QUALIFIER
 %{?scl:EOF}
 
 
@@ -193,11 +183,19 @@ set -e -x
 %files tests -f .mfiles-tests
 
 %changelog
-* Fri Jul 29 2016 Mat Booth <mat.booth@redhat.com> - 5.5.0-3.2
-- Tweak requires for availability on RHEL
+* Mon Jan 16 2017 Mat Booth <mat.booth@redhat.com> - 5.7.0-1.2
+- Tweak requires and lucene patch for compatibility with RHEL
 
-* Fri Jul 29 2016 Mat Booth <mat.booth@redhat.com> - 5.5.0-3.1
+* Mon Jan 16 2017 Mat Booth <mat.booth@redhat.com> - 5.7.0-1.1
 - Auto SCL-ise package for rh-eclipse46 collection
+
+* Tue Jan 10 2017 Mat Booth <mat.booth@redhat.com> - 5.7.0-1
+- Update to latest release
+- Fix indexing problems caused by split-packages in Lucene libs - rhbz#1397238
+- Drop some ancient obsoletes
+
+* Tue Oct 04 2016 Mat Booth <mat.booth@redhat.com> - 5.6.0-1
+- Update to 5.6.0 release
 
 * Thu Jul 14 2016 Mat Booth <mat.booth@redhat.com> - 5.5.0-3
 - Fix restricted API warnings in lucene indexer

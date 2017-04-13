@@ -1,18 +1,5 @@
-From a34fcb2cf40114a7f2434647c8270de467c09f1b Mon Sep 17 00:00:00 2001
-From: Mat Booth <mat.booth@redhat.com>
-Date: Tue, 5 Jul 2016 10:35:07 +0100
-Subject: [PATCH] Port to latest system Lucene
-
----
- core/plugins/org.eclipse.dltk.core.index.lucene/.classpath    |  3 ---
- .../org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF   |  9 ++++-----
- .../org.eclipse.dltk.core.index.lucene/build.properties       |  5 +----
- .../dltk/internal/core/index/lucene/BitFlagsQuery.java        | 11 +++++------
- .../dltk/internal/core/index/lucene/IndexDirectory.java       |  1 -
- 5 files changed, 10 insertions(+), 19 deletions(-)
-
 diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/.classpath b/core/plugins/org.eclipse.dltk.core.index.lucene/.classpath
-index 7376f74..098194c 100644
+INDex 7376f74..098194c 100644
 --- a/core/plugins/org.eclipse.dltk.core.index.lucene/.classpath
 +++ b/core/plugins/org.eclipse.dltk.core.index.lucene/.classpath
 @@ -1,8 +1,5 @@
@@ -25,7 +12,7 @@ index 7376f74..098194c 100644
  	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
  	<classpathentry kind="src" path="src"/>
 diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF b/core/plugins/org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF
-index 029ec8a..57d6e87 100644
+index 95fb7ae..590fe72 100644
 --- a/core/plugins/org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF
 +++ b/core/plugins/org.eclipse.dltk.core.index.lucene/META-INF/MANIFEST.MF
 @@ -8,11 +8,10 @@ Bundle-Localization: plugin
@@ -34,15 +21,15 @@ index 029ec8a..57d6e87 100644
   org.eclipse.core.resources,
 - org.eclipse.dltk.core
 + org.eclipse.dltk.core,
-+ org.apache.lucene.core,
-+ org.apache.lucene.analyzers-common,
-+ org.apache.lucene.misc
++ org.apache.lucene.core;bundle-version="[5.4.0,6.0.0)",
++ org.apache.lucene.analyzers-common;bundle-version="[5.4.0,6.0.0)"
  Bundle-RequiredExecutionEnvironment: JavaSE-1.7
  Bundle-ActivationPolicy: lazy
 -Bundle-ClassPath: .,
 - lib/lucene-analyzers-common-5.2.1.jar,
 - lib/lucene-core-5.2.1.jar,
 - lib/lucene-misc-5.2.1.jar
++Bundle-ClassPath: .
  Export-Package: org.eclipse.dltk.core.index.lucene
 diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/build.properties b/core/plugins/org.eclipse.dltk.core.index.lucene/build.properties
 index eb43af9..665bfb0 100644
@@ -62,7 +49,7 @@ diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dlt
 index 9af3308..eacc736 100644
 --- a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java
 +++ b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java
-@@ -100,8 +100,7 @@ public class BitFlagsQuery extends Query {
+@@ -100,10 +100,9 @@ public class BitFlagsQuery extends Query {
  			@Override
  			public Explanation explain(LeafReaderContext context, int doc)
  					throws IOException {
@@ -70,8 +57,11 @@ index 9af3308..eacc736 100644
 -						context.reader().getLiveDocs());
 +				final Scorer scorer = scorer(context);
  				final boolean match = (scorer != null
- 						&& scorer.advance(doc) == doc);
+-						&& scorer.advance(doc) == doc);
++						&& scorer.advance(doc) == doc);
  				if (match) {
+ 					assert scorer.score() == 0;
+ 					return Explanation.match(0, "Match on id" + doc); //$NON-NLS-1$
 @@ -113,9 +112,9 @@ public class BitFlagsQuery extends Query {
  			}
  
@@ -86,10 +76,18 @@ index 9af3308..eacc736 100644
  					return null;
  				}
 diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java
-index 20f3b00..5945bf8 100644
+index 20f3b00..98919df 100644
 --- a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java
 +++ b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java
-@@ -93,7 +93,6 @@ public class IndexDirectory extends RAFDirectory {
+@@ -24,7 +24,6 @@ import org.apache.lucene.store.IOContext;
+ import org.apache.lucene.store.IndexOutput;
+ import org.apache.lucene.store.LockFactory;
+ import org.apache.lucene.store.OutputStreamIndexOutput;
+-import org.apache.lucene.store.RAFDirectory;
+ 
+ /**
+  * <p>
+@@ -93,7 +92,6 @@ public class IndexDirectory extends RAFDirectory {
  	public IndexOutput createOutput(String name, IOContext context)
  			throws IOException {
  		ensureOpen();
@@ -97,6 +95,219 @@ index 20f3b00..5945bf8 100644
  		return new RAFIndexOutput(name);
  	}
  
--- 
-2.5.5
-
+diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/RAFDirectory.java b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/RAFDirectory.java
+new file mode 100644
+index 0000000..57f7f83
+--- /dev/null
++++ b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/RAFDirectory.java
+@@ -0,0 +1,209 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.eclipse.dltk.internal.core.index.lucene;
++
++import java.io.EOFException;
++import java.io.File;
++import java.io.IOException;
++import java.io.RandomAccessFile;
++import java.nio.file.Path;
++
++import org.apache.lucene.store.BufferedIndexInput;
++import org.apache.lucene.store.FSDirectory;
++import org.apache.lucene.store.FSLockFactory;
++import org.apache.lucene.store.IOContext;
++import org.apache.lucene.store.IndexInput;
++import org.apache.lucene.store.LockFactory;
++import org.apache.lucene.store.MMapDirectory;
++import org.apache.lucene.store.NIOFSDirectory;
++import org.apache.lucene.util.SuppressForbidden;
++
++/**
++ * A straightforward implementation of {@link FSDirectory} using
++ * java.io.RandomAccessFile. However, this class has poor concurrent performance
++ * (multiple threads will bottleneck) as it synchronizes when multiple threads
++ * read from the same file. It's usually better to use {@link NIOFSDirectory} or
++ * {@link MMapDirectory} instead.
++ * <p>
++ * NOTE: Because this uses RandomAccessFile, it will generally not work with
++ * non-default filesystem providers. It is only provided for applications that
++ * relied on the fact that RandomAccessFile's IO was not interruptible.
++ */
++@SuppressForbidden(reason = "java.io.File: RAFDirectory is legacy API")
++public class RAFDirectory extends FSDirectory {
++
++	/**
++	 * Create a new RAFDirectory for the named location. The directory is
++	 * created at the named location if it does not yet exist.
++	 *
++	 * @param path
++	 *            the path of the directory
++	 * @param lockFactory
++	 *            the lock factory to use
++	 * @throws IOException
++	 *             if there is a low-level I/O error
++	 */
++	public RAFDirectory(Path path, LockFactory lockFactory) throws IOException {
++		super(path, lockFactory);
++		path.toFile(); // throw exception if we can't get a File
++	}
++
++	/**
++	 * Create a new SimpleFSDirectory for the named location and
++	 * {@link FSLockFactory#getDefault()}. The directory is created at the named
++	 * location if it does not yet exist.
++	 *
++	 * @param path
++	 *            the path of the directory
++	 * @throws IOException
++	 *             if there is a low-level I/O error
++	 */
++	public RAFDirectory(Path path) throws IOException {
++		this(path, FSLockFactory.getDefault());
++	}
++
++	/** Creates an IndexInput for the file with the given name. */
++	@Override
++	public IndexInput openInput(String name, IOContext context)
++			throws IOException {
++		ensureOpen();
++		final File path = directory.resolve(name).toFile();
++		RandomAccessFile raf = new RandomAccessFile(path, "r");
++		return new RAFIndexInput(
++				"SimpleFSIndexInput(path=\"" + path.getPath() + "\")", raf,
++				context);
++	}
++
++	/**
++	 * Reads bytes with {@link RandomAccessFile#seek(long)} followed by
++	 * {@link RandomAccessFile#read(byte[], int, int)}.
++	 */
++	@SuppressForbidden(reason = "java.io.File: RAFDirectory is legacy API")
++	static final class RAFIndexInput extends BufferedIndexInput {
++		/**
++		 * The maximum chunk size is 8192 bytes, because
++		 * {@link RandomAccessFile} mallocs a native buffer outside of stack if
++		 * the read buffer size is larger.
++		 */
++		private static final int CHUNK_SIZE = 8192;
++
++		/** the file channel we will read from */
++		protected final RandomAccessFile file;
++		/**
++		 * is this instance a clone and hence does not own the file to close it
++		 */
++		boolean isClone = false;
++		/** start offset: non-zero in the slice case */
++		protected final long off;
++		/** end offset (start+length) */
++		protected final long end;
++
++		public RAFIndexInput(String resourceDesc, RandomAccessFile file,
++				IOContext context) throws IOException {
++			super(resourceDesc, context);
++			this.file = file;
++			this.off = 0L;
++			this.end = file.length();
++		}
++
++		public RAFIndexInput(String resourceDesc, RandomAccessFile file,
++				long off, long length, int bufferSize) {
++			super(resourceDesc, bufferSize);
++			this.file = file;
++			this.off = off;
++			this.end = off + length;
++			this.isClone = true;
++		}
++
++		@Override
++		public void close() throws IOException {
++			if (!isClone) {
++				file.close();
++			}
++		}
++
++		@Override
++		public RAFIndexInput clone() {
++			RAFIndexInput clone = (RAFIndexInput) super.clone();
++			clone.isClone = true;
++			return clone;
++		}
++
++		@Override
++		public IndexInput slice(String sliceDescription, long offset,
++				long length) throws IOException {
++			if (offset < 0 || length < 0 || offset + length > this.length()) {
++				throw new IllegalArgumentException("slice() " + sliceDescription
++						+ " out of bounds: " + this);
++			}
++			return new RAFIndexInput(sliceDescription, file, off + offset,
++					length, getBufferSize());
++		}
++
++		@Override
++		public final long length() {
++			return end - off;
++		}
++
++		/** IndexInput methods */
++		@Override
++		protected void readInternal(byte[] b, int offset, int len)
++				throws IOException {
++			synchronized (file) {
++				long position = off + getFilePointer();
++				file.seek(position);
++				int total = 0;
++
++				if (position + len > end) {
++					throw new EOFException("read past EOF: " + this);
++				}
++
++				try {
++					while (total < len) {
++						final int toRead = Math.min(CHUNK_SIZE, len - total);
++						final int i = file.read(b, offset + total, toRead);
++						if (i < 0) { // be defensive here, even though we
++										// checked before hand, something could
++										// have changed
++							throw new EOFException("read past EOF: " + this
++									+ " off: " + offset + " len: " + len
++									+ " total: " + total + " chunkLen: "
++									+ toRead + " end: " + end);
++						}
++						assert i > 0 : "RandomAccessFile.read with non zero-length toRead must always read at least one byte";
++						total += i;
++					}
++					assert total == len;
++				} catch (IOException ioe) {
++					throw new IOException(ioe.getMessage() + ": " + this, ioe);
++				}
++			}
++		}
++
++		@Override
++		protected void seekInternal(long pos) throws IOException {
++			if (pos > length()) {
++				throw new EOFException("read past EOF: pos=" + pos
++						+ " vs length=" + length() + ": " + this);
++			}
++		}
++
++		boolean isFDValid() throws IOException {
++			return file.getFD().valid();
++		}
++	}
++}
+\ No newline at end of file
