@@ -2,12 +2,12 @@
 %{!?scl:%global pkg_name %{name}}
 %{?java_common_find_provides_and_requires}
 
-%global baserelease 2
+%global baserelease 1
 
-%global gittag R5_7_0
+%global gittag R5_7_1
 
 Name:      %{?scl_prefix}eclipse-dltk
-Version:   5.7.0
+Version:   5.7.1
 Release:   1.%{baserelease}%{?dist}
 Summary:   Dynamic Languages Toolkit (DLTK) Eclipse plug-in
 License:   EPL and (CPL or GPLv2+ or LGPLv2+) and Ruby and ASL 2.0
@@ -27,13 +27,14 @@ BuildArch:        noarch
 BuildRequires:    %{?scl_prefix}eclipse-license >= 1.0.1
 BuildRequires:    %{?scl_prefix}eclipse-pde >= 1:4.6.0
 BuildRequires:    %{?scl_prefix}eclipse-emf-runtime
-BuildRequires:    %{?scl_prefix}eclipse-mylyn
+BuildRequires:    %{?scl_prefix}eclipse-mylyn >= 3.21.0-4
 BuildRequires:    %{?scl_prefix}eclipse-rse
 BuildRequires:    %{?scl_prefix}eclipse-manpage
 BuildRequires:    %{?scl_prefix}h2
 BuildRequires:    %{?scl_prefix_java_common}lucene5
 BuildRequires:    %{?scl_prefix_java_common}lucene5-analysis
 BuildRequires:    %{?scl_prefix}tycho
+BuildRequires:    %{?scl_prefix}tycho-extras
 Requires:         %{?scl_prefix}eclipse-platform >= 1:4.6.0
 
 %description
@@ -47,6 +48,10 @@ Summary:   Ruby Eclipse plug-in
 Requires:  ruby
 #needed for ri to have standard docs so one has the basic help
 Requires:  ruby-doc
+%if ! 0%{?rhel}
+#needed for tests runner
+Requires:  rubygem-test-unit
+%endif
 
 %description ruby
 Ruby development environment for Eclipse based on the Eclipse Dynamic
@@ -62,6 +67,7 @@ Languages Toolkit (DLTK). Includes Incr TCL and XOTCL extensions.
 
 %package   mylyn
 Summary:   Mylyn integration for Eclipse DLTK projects
+Requires:  %{?scl_prefix}eclipse-mylyn >= 3.21.0-4
 
 %description mylyn
 Mylyn task-focused UI integration for Eclipse Dynamic Languages Toolkit
@@ -83,7 +89,7 @@ Shell Script editor/launch support based on DLTK.
 
 %package   sdk
 Summary:   Eclipse DLTK SDK
-Requires:  %{?scl_prefix}eclipse-pde >= 1:4.4.0
+Requires:  %{?scl_prefix}eclipse-pde >= 1:4.6.0
 Requires:  %{name}       = %{version}-%{release}
 Requires:  %{name}-ruby  = %{version}-%{release}
 Requires:  %{name}-tcl   = %{version}-%{release}
@@ -107,8 +113,19 @@ Tests for Eclipse Dynamic Languages Toolkit (DLTK).
 set -e -x
 %setup -q -n eclipse-dltk-%{gittag}
 
+# Patch and fixes for latest lucene
 pushd org.eclipse.dltk.core
 %patch0 -p1
+%if 0%{?rhel}
+sed -i -e 's/scorer\.iterator()/scorer/' \
+  core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java
+%endif
+%if 0%{?fedora} < 27
+sed -i -e '/	name,/d' \
+  core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java
+sed -i -e '/SearcherFactory()/s/false,//' \
+  core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexContainer.java
+%endif
 popd
 
 # We are not shipping the python and javascript editors
@@ -125,6 +142,7 @@ sed -i '/<target>/,/<\/target>/ d' org.eclipse.dltk.core/core/tests/org.eclipse.
 
 %pom_xpath_remove "pom:plugin[pom:artifactId='tycho-packaging-plugin']/pom:dependencies" org.eclipse.dltk.releng/build
 %pom_xpath_remove "pom:plugin[pom:artifactId='tycho-packaging-plugin']/pom:configuration" org.eclipse.dltk.releng/build
+%pom_xpath_remove "pom:plugin[pom:artifactId='target-platform-configuration']/pom:configuration/pom:target" org.eclipse.dltk.releng/build
 
 %mvn_package "::pom::" __noinstall
 %mvn_package ":*.tests" tests
@@ -183,11 +201,18 @@ set -e -x
 %files tests -f .mfiles-tests
 
 %changelog
-* Mon Jan 16 2017 Mat Booth <mat.booth@redhat.com> - 5.7.0-1.2
-- Tweak requires and lucene patch for compatibility with RHEL
-
-* Mon Jan 16 2017 Mat Booth <mat.booth@redhat.com> - 5.7.0-1.1
+* Fri Mar 31 2017 Mat Booth <mat.booth@redhat.com> - 5.7.1-1.1
 - Auto SCL-ise package for rh-eclipse46 collection
+
+* Thu Mar 30 2017 Mat Booth <mat.booth@redhat.com> - 5.7.1-1
+- Update to latest upstream release
+- Allow building against lucene 6
+
+* Fri Feb 10 2017 Fedora Release Engineering <releng@fedoraproject.org> - 5.7.0-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_26_Mass_Rebuild
+
+* Fri Jan 27 2017 Mat Booth <mat.booth@redhat.com> - 5.7.0-2
+- Build documentation indexes using latest system version of lucene
 
 * Tue Jan 10 2017 Mat Booth <mat.booth@redhat.com> - 5.7.0-1
 - Update to latest release

@@ -21,8 +21,8 @@ index 95fb7ae..590fe72 100644
   org.eclipse.core.resources,
 - org.eclipse.dltk.core
 + org.eclipse.dltk.core,
-+ org.apache.lucene.core;bundle-version="[5.4.0,6.0.0)",
-+ org.apache.lucene.analyzers-common;bundle-version="[5.4.0,6.0.0)"
++ org.apache.lucene.core;bundle-version="[5.4.1,7.0.0)",
++ org.apache.lucene.analyzers-common;bundle-version="[5.4.1,7.0.0)"
  Bundle-RequiredExecutionEnvironment: JavaSE-1.7
  Bundle-ActivationPolicy: lazy
 -Bundle-ClassPath: .,
@@ -46,10 +46,28 @@ index eb43af9..665bfb0 100644
 +               about.html
  source.. = src/
 diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java
-index 9af3308..eacc736 100644
+index 9af3308..6df98d7 100644
 --- a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java
 +++ b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/BitFlagsQuery.java
-@@ -100,10 +100,9 @@ public class BitFlagsQuery extends Query {
+@@ -49,7 +49,7 @@
+ 	@Override
+ 	public int hashCode() {
+ 		final int prime = 31;
+-		int result = super.hashCode();
++		int result = 1;
+ 		result = prime * result + fFalseFlags;
+ 		result = prime * result + fTrueFlags;
+ 		return result;
+@@ -59,7 +59,7 @@
+ 	public boolean equals(Object obj) {
+ 		if (this == obj)
+ 			return true;
+-		if (!super.equals(obj))
++		if (obj == null)
+ 			return false;
+ 		if (getClass() != obj.getClass())
+ 			return false;
+@@ -100,10 +100,9 @@
  			@Override
  			public Explanation explain(LeafReaderContext context, int doc)
  					throws IOException {
@@ -58,11 +76,11 @@ index 9af3308..eacc736 100644
 +				final Scorer scorer = scorer(context);
  				final boolean match = (scorer != null
 -						&& scorer.advance(doc) == doc);
-+						&& scorer.advance(doc) == doc);
++						&& scorer.iterator().advance(doc) == doc);
  				if (match) {
  					assert scorer.score() == 0;
  					return Explanation.match(0, "Match on id" + doc); //$NON-NLS-1$
-@@ -113,9 +112,9 @@ public class BitFlagsQuery extends Query {
+@@ -113,9 +112,9 @@
  			}
  
  			@Override
@@ -75,6 +93,49 @@ index 9af3308..eacc736 100644
  				if (set == null) {
  					return null;
  				}
+diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexContainer.java b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexContainer.java
+index 9f079d9..38f5ea2 100644
+--- a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexContainer.java
++++ b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexContainer.java
+@@ -27,6 +27,7 @@
+ import org.apache.lucene.search.SearcherManager;
+ import org.apache.lucene.store.Directory;
+ import org.apache.lucene.store.SimpleFSLockFactory;
++import org.apache.lucene.store.SleepingLockWrapper;
+ import org.eclipse.core.runtime.IProgressMonitor;
+ import org.eclipse.core.runtime.IStatus;
+ import org.eclipse.core.runtime.Status;
+@@ -133,9 +134,9 @@
+ 		mergeScheduler.setDefaultMaxMergesAndThreads(true);
+ 		config.setMergeScheduler(mergeScheduler);
+ 		config.setOpenMode(OpenMode.CREATE_OR_APPEND);
+-		config.setWriteLockTimeout(WRITE_LOCK_TIMEOUT);
+ 		config.setCommitOnClose(false);
+-		return new IndexWriter(indexDir, config);
++		return new IndexWriter(
++				new SleepingLockWrapper(indexDir, WRITE_LOCK_TIMEOUT), config);
+ 	}
+ 
+ 	private IndexWriter getWriter(Path path) {
+@@ -171,7 +172,7 @@
+ 		try {
+ 			if (fTimestampsSearcher == null) {
+ 				fTimestampsSearcher = new SearcherManager(getTimestampsWriter(),
+-						true, new SearcherFactory());
++						true, false, new SearcherFactory());
+ 			}
+ 			// Try to achieve the up-to-date index state
+ 			fTimestampsSearcher.maybeRefresh();
+@@ -200,8 +201,7 @@
+ 		try {
+ 			if (searcher == null) {
+ 				searcher = new SearcherManager(
+-						getIndexWriter(dataType, elementType), true,
+-						new SearcherFactory());
++						getIndexWriter(dataType, elementType), true, false, new SearcherFactory());
+ 				fIndexSearchers.get(dataType).put(elementType, searcher);
+ 			}
+ 			// Try to achieve the up-to-date index state
 diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java
 index 20f3b00..98919df 100644
 --- a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/IndexDirectory.java
@@ -87,12 +148,95 @@ index 20f3b00..98919df 100644
  
  /**
   * <p>
-@@ -93,7 +92,6 @@ public class IndexDirectory extends RAFDirectory {
+@@ -50,6 +49,7 @@
+ 
+ 		public RAFIndexOutput(String name) throws IOException {
+ 			super(MessageFormat.format(DESCRIPTION, directory.resolve(name)),
++					name,
+ 					new RAFOutputStream(
+ 							new FileOutputStream(new File(
+ 									directory.resolve(name).toString())),
+@@ -93,7 +93,6 @@ public class IndexDirectory extends RAFDirectory {
  	public IndexOutput createOutput(String name, IOContext context)
  			throws IOException {
  		ensureOpen();
 -		ensureCanWrite(name);
  		return new RAFIndexOutput(name);
+ 	}
+ 
+diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/LuceneSearchEngine.java b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/LuceneSearchEngine.java
+index f435262..58187b5 100644
+--- a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/LuceneSearchEngine.java
++++ b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/LuceneSearchEngine.java
+@@ -10,7 +10,22 @@
+  *******************************************************************************/
+ package org.eclipse.dltk.internal.core.index.lucene;
+ 
+-import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.*;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.BDV_DOC;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.BDV_ELEMENT_NAME;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.BDV_METADATA;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.BDV_PARENT;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.BDV_PATH;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.BDV_QUALIFIER;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.F_CC_NAME;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.F_ELEMENT_NAME_LC;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.F_PARENT;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.F_PATH;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.F_QUALIFIER;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.NDV_FLAGS;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.NDV_LENGTH;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.NDV_NAME_LENGTH;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.NDV_NAME_OFFSET;
++import static org.eclipse.dltk.internal.core.index.lucene.IndexFields.NDV_OFFSET;
+ 
+ import java.io.IOException;
+ import java.util.ArrayList;
+@@ -217,15 +232,15 @@
+ 			final String parent, final int trueFlags, final int falseFlags,
+ 			final boolean searchForRefs, MatchRule matchRule,
+ 			IDLTKSearchScope scope) {
+-		BooleanQuery query = new BooleanQuery();
++		BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+ 		List<String> scripts = SearchScope.getScripts(scope);
+ 		if (!scripts.isEmpty()) {
+-			BooleanQuery scriptQuery = new BooleanQuery();
++			BooleanQuery.Builder scriptQueryBuilder = new BooleanQuery.Builder();
+ 			for (String script : scripts) {
+-				scriptQuery.add(new TermQuery(new Term(F_PATH, script)),
++				scriptQueryBuilder.add(new TermQuery(new Term(F_PATH, script)),
+ 						Occur.FILTER);
+ 			}
+-			query.add(scriptQuery, Occur.FILTER);
++			queryBuilder.add(scriptQueryBuilder.build(), Occur.FILTER);
+ 		}
+ 		if (elementName != null && !elementName.isEmpty()) {
+ 			String elementNameLC = elementName.toLowerCase();
+@@ -244,19 +259,22 @@
+ 				throw new UnsupportedOperationException();
+ 			}
+ 			if (nameQuery != null) {
+-				query.add(nameQuery, Occur.FILTER);
++				queryBuilder.add(nameQuery, Occur.FILTER);
+ 			}
+ 		}
+ 		if (qualifier != null && !qualifier.isEmpty()) {
+-			query.add(new TermQuery(new Term(F_QUALIFIER, qualifier)),
++			queryBuilder.add(new TermQuery(new Term(F_QUALIFIER, qualifier)),
+ 					Occur.FILTER);
+ 		}
+ 		if (parent != null && !parent.isEmpty()) {
+-			query.add(new TermQuery(new Term(F_PARENT, parent)), Occur.FILTER);
++			queryBuilder.add(new TermQuery(new Term(F_PARENT, parent)),
++					Occur.FILTER);
+ 		}
+ 		if (trueFlags != 0 || falseFlags != 0) {
+-			query.add(new BitFlagsQuery(trueFlags, falseFlags), Occur.FILTER);
++			queryBuilder.add(new BitFlagsQuery(trueFlags, falseFlags),
++					Occur.FILTER);
+ 		}
++		BooleanQuery query = queryBuilder.build();
+ 		return query.clauses().isEmpty() ? null : query;
  	}
  
 diff --git a/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/RAFDirectory.java b/core/plugins/org.eclipse.dltk.core.index.lucene/src/org/eclipse/dltk/internal/core/index/lucene/RAFDirectory.java
