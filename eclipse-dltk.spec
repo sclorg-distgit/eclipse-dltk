@@ -2,7 +2,7 @@
 %{!?scl:%global pkg_name %{name}}
 %{?java_common_find_provides_and_requires}
 
-%global baserelease 1
+%global baserelease 2
 
 %global gittag R5_7_1
 
@@ -21,6 +21,9 @@ Source1:   get-dltk.sh
 
 # Port to latest system lucene
 Patch0:    eclipse-dltk-lucene.patch
+
+# Fix ruby debug launch consoles
+Patch1:    eclipse-dltk-ruby-debug-launch.patch
 
 BuildArch:        noarch
 
@@ -128,6 +131,10 @@ sed -i -e '/SearcherFactory()/s/false,//' \
 %endif
 popd
 
+pushd org.eclipse.dltk.ruby
+%patch1 -p1
+popd
+
 # We are not shipping the python and javascript editors
 # For python we have eclipse-pydev, which should be used instead
 # For javascript we have eclipse-webtools, which should be used instead
@@ -201,6 +208,9 @@ set -e -x
 %files tests -f .mfiles-tests
 
 %changelog
+* Fri Apr 07 2017 Mat Booth <mat.booth@redhat.com> - 5.7.1-1.2
+- Fix console defaults for ruby debugging
+
 * Fri Mar 31 2017 Mat Booth <mat.booth@redhat.com> - 5.7.1-1.1
 - Auto SCL-ise package for rh-eclipse46 collection
 

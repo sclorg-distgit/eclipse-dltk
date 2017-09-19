@@ -1,0 +1,45 @@
+From 3270d424546a06f984cc5bec6123c20dc8beeac9 Mon Sep 17 00:00:00 2001
+From: Alexander Kurtakov
+Date: Thu, 6 Apr 2017 11:43:54 +0300
+Subject: Mark RubyBasicDebuggerRunner launch as debug one.
+
+Fix for Bug 419273 changed the default so only explicitly marked
+launches are considered debug. 
+
+Change-Id: I8d0022587d61f5bb0b96214b2695085d2cb16ebc
+Signed-off-by: Alexander Kurtakov <akurtako@redhat.com>
+---
+ .../org/eclipse/dltk/ruby/basicdebugger/RubyBasicDebuggerRunner.java | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/plugins/org.eclipse.dltk.ruby.basicdebugger/src/org/eclipse/dltk/ruby/basicdebugger/RubyBasicDebuggerRunner.java b/plugins/org.eclipse.dltk.ruby.basicdebugger/src/org/eclipse/dltk/ruby/basicdebugger/RubyBasicDebuggerRunner.java
+index 26c193c..ef4baa6 100644
+--- a/plugins/org.eclipse.dltk.ruby.basicdebugger/src/org/eclipse/dltk/ruby/basicdebugger/RubyBasicDebuggerRunner.java
++++ b/plugins/org.eclipse.dltk.ruby.basicdebugger/src/org/eclipse/dltk/ruby/basicdebugger/RubyBasicDebuggerRunner.java
+@@ -1,12 +1,11 @@
+ /*******************************************************************************
+- * Copyright (c) 2005, 2016 IBM Corporation and others.
++ * Copyright (c) 2005, 2017 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+  * http://www.eclipse.org/legal/epl-v10.html
+  *
+  *******************************************************************************/
+-
+ package org.eclipse.dltk.ruby.basicdebugger;
+ 
+ import java.io.IOException;
+@@ -66,7 +65,7 @@ public class RubyBasicDebuggerRunner extends DebuggingEngineRunner {
+ 		if (deployment == null) {
+ 			return null;
+ 		}
+-
++		launch.setAttribute("org.eclipse.dltk.debug.debugConsole", "true"); 
+ 		DeploymentManager.getInstance().addDeployment(launch, deployment);
+ 
+ 		// Get debugger source location
+-- 
+cgit v0.11.2-4-g4a35
+
+
